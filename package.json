@@ -1,0 +1,18 @@
+{
+	"name": "stdmic",
+	"version": "1.0.0",
+	"description": "a static and dynamic cms!",
+	"main": "index.js",
+	"scripts": {
+		"test": "nodemon --ignore data index.js"
+	},
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"express": "^4.18.2",
+		"jsdom": "^21.0.0"
+	},
+	"devDependencies": {
+		"nodemon": "^2.0.20"
+	}
+}
