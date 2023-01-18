@@ -5,6 +5,7 @@ const JSDOM = require("jsdom").JSDOM;
 const fs = require("fs").promises;
 const path = require("path");
 
+app.use(express.static(path.join(__dirname, "editor")));
 app.use(express.static(path.join(__dirname, "out")));
 app.use(express.json({extended: false}));
 
@@ -58,10 +59,10 @@ app.put("/save/:name/", async (req, res) => {
 
 async function writeData(data) {
 	await fs.mkdir("data", {recursive: true});
-	await fs.writeFile(`data/${data.name}.json`, JSON.stringify(data));
+	await fs.writeFile(`data/${data.name}.json`, JSON.stringify(data, null, 4));
 }
 
-app.get("/make/:name/", async (req, res) => {
+app.put("/make/:name/", async (req, res) => {
 	const name = req.params.name;
 	const data = await readData(name);
 	if (data.name !== name) {
