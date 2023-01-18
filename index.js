@@ -8,60 +8,76 @@ const path = require("path");
 app.use(express.static(path.join(__dirname, "out")));
 app.use(express.json({extended: false}));
 
-app.get("/open/:page/", async (req, res) => {
-	const page = req.params.page;
-
+async function readData(name) {
 	let data;
 	try {
-		const json = await fs.readFile(`data/${page}.json`);
+		const json = await fs.readFile(`data/${name}.json`);
 		data = JSON.parse(json);
-		if (data.page !== page) {
-			console.warn("page mismatch => change data.page!!");
-			data.page = page;
-			console.log(data);
+		if (data.name !== name) {
+			console.warn("name mismatch => change data.name!");
+			data.name = name;
 		}
 	} catch(err) {
 		console.error("cant open data => create new data!!");
-		data = {page};
+		data = {name, ...await getTemplateDefaults("page")};
 	}
+	return data;
+}
 
-	let defaults;
-	try {
-		const json = await fs.readFile(`template/page.json`);
-		defaults = JSON.parse(json);
-	} catch(err) {
-		console.error("cant open vars => use empty defaults!!");
-		defaults = {};
-	}
-	
-	for (const [key, value] of Object.entries(defaults)) {
-		if (!data[key]) data[key] = value;
-	}
-
-	res.json(data);
-});
-
-app.post("/save/:page/", async (req, res) => {
-	const page = req.params.page;
-	const data = req.body;
-
-	if (data.page !== page) {
-		console.error("page mismatch => fail!!");
-		return res.send("fail");
-	}
-
+async function getTemplateDefaults(temp) {
 	let jsdom;
+	let defaults = {};
 	try {
-		jsdom = new JSDOM(await fs.readFile(`template/page.html`));
-		jsdom.window.document.title = data.title || "untitled";
+		jsdom = new JSDOM(await fs.readFile(`template/${temp}.html`));
+		const nodes = jsdom.window.document.querySelectorAll("[data-edit]");
+		nodes.forEach(node => defaults[node.dataset.edit] = node.textContent);
 	} catch (err) {
 		console.error(err);
-		console.log("cant find template => fail!!");
-		return res.send("fail");
+		console.log("cant find template => no defaults!!");
+	}
+	return defaults;
+}
+
+app.get("/open/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.json(await readData(name));
+});
+
+app.put("/save/:name/", async (req, res) => {
+	const name = req.params.name;
+	const data = req.body;
+
+	if (data.name !== name) {
+		console.error("name mismatch => fail!!");
+		return res.send(false);
 	}
 
+	await writeData(data);
+	res.send(true);
+});
+
+async function writeData(data) {
+	await fs.mkdir("data", {recursive: true});
+	await fs.writeFile(`data/${data.name}.json`, JSON.stringify(data));
+}
+
+app.get("/make/:name/", async (req, res) => {
+	const name = req.params.name;
+	const data = await readData(name);
+	if (data.name !== name) {
+		console.error("name mismatch => fail!!");
+		return res.send(false);
+	}
+
+	const jsdom = await readTemplate("page");
+	if (!jsdom) {
+		console.log("cant find template => fail!!");
+		return res.send(false);
+	}
+
+	jsdom.window.document.title = data.title || "untitled";
+
 	const nodes = jsdom.window.document.querySelectorAll("[data-edit]");
-	
 	const map = new Map();
 	nodes.forEach(node => map.set(node.dataset.edit, node));
 
@@ -69,16 +85,28 @@ app.post("/save/:page/", async (req, res) => {
 		if (map.has(key)) map.get(key).textContent = value;
 	}
 	
+	writeHtml(data, jsdom);
+	res.send(true);
+});
+
+async function readTemplate(temp) {
+	try {
+		const jsdom = new JSDOM(await fs.readFile(`template/${temp}.html`));
+		return jsdom;
+	} catch (err) {
+		console.error(err);
+		return null;
+	}
+}
+
+async function writeHtml(data, jsdom) {
 	await fs.mkdir("out", {recursive: true});
-	await fs.mkdir("data", {recursive: true});
-	if (page === "index") {
+	if (data.name === "index") {
 		await fs.writeFile(`out/index.html`, jsdom.serialize());
 	} else {
-		await fs.mkdir(`out/${page}`, {recursive: true});
-		await fs.writeFile(`out/${page}/index.html`, jsdom.serialize());
+		await fs.mkdir(`out/${data.name}`, {recursive: true});
+		await fs.writeFile(`out/${data.name}/index.html`, jsdom.serialize());
 	}
-	await fs.writeFile(`data/${page}.json`, JSON.stringify(data));
-	res.sendStatus(200);
-});
+}
 
 app.listen(port, () => console.log(`on ${port}`));
