@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="robots" content="noindex">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>stdmic editor</title>
+		<link rel="stylesheet" href="style.css">
+	</head>
+	<body>
+		<main class="main">
+			<h1>stdmic editor</h1>
+			<p class="menu">
+				<input type="text" id="name" name="name">
+				<button id="open">open</button>
+				<button id="save">save</button>
+				<button id="make">make</button>
+			</p>
+			<p class="editor">
+				<textarea id="editor"></textarea>
+			</p>
+		</main>
+		
+		<script>
+			{
+				const name = document.querySelector("#name");
+				const open = document.querySelector("#open");
+				const save = document.querySelector("#save");
+				const make = document.querySelector("#make");
+				const editor = document.querySelector("#editor");
+
+				open.addEventListener("click", event => {
+					fetch(`/open/${name.value}/`)
+						.then(res => res.json())
+						.then(json => editor.value = JSON.stringify(json, null, 4));
+				});
+
+				save.addEventListener("click", event => {
+					fetch(`/save/${name.value}/`, {
+						method: "PUT",
+						headers: {
+							"Accept": "application/json",
+							"Content-Type": "application/json",
+						},
+						body: editor.value,
+					})
+						.then(res => res.json())
+						.then(console.log);
+				});
+
+				make.addEventListener("click", event => {
+					fetch(`/make/${name.value}/`, {
+						method: "PUT",
+						headers: {
+							"Accept": "application/json",
+							"Content-Type": "application/json",
+						},
+					})
+						.then(res => res.json())
+						.then(console.log);
+				});
+			}
+		</script>
+	</body>
+</html>

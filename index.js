@@ -9,6 +9,11 @@ app.use(express.static(path.join(__dirname, "editor")));
 app.use(express.static(path.join(__dirname, "out")));
 app.use(express.json({extended: false}));
 
+app.get("/open/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.json(await readData(name));
+});
+
 async function readData(name) {
 	let data;
 	try {
@@ -39,27 +44,23 @@ async function getTemplateDefaults(temp) {
 	return defaults;
 }
 
-app.get("/open/:name/", async (req, res) => {
-	const name = req.params.name;
-	res.json(await readData(name));
-});
-
 app.put("/save/:name/", async (req, res) => {
 	const name = req.params.name;
 	const data = req.body;
 
-	if (data.name !== name) {
-		console.error("name mismatch => fail!!");
-		return res.send(false);
-	}
-
-	await writeData(data);
-	res.send(true);
+	const result = await writeData(name, data);
+	res.send(result);
 });
 
-async function writeData(data) {
+async function writeData(name, data) {
+	if (data.name !== name) {
+		console.error("name mismatch => data not writte!!");
+		return false;
+	}
+
 	await fs.mkdir("data", {recursive: true});
 	await fs.writeFile(`data/${data.name}.json`, JSON.stringify(data, null, 4));
+	return true;
 }
 
 app.put("/make/:name/", async (req, res) => {
@@ -85,6 +86,9 @@ app.put("/make/:name/", async (req, res) => {
 	for (const [key, value] of Object.entries(data)) {
 		if (map.has(key)) map.get(key).textContent = value;
 	}
+
+	const nav = await readSetting("nav");
+	await addNav(nav, jsdom);
 	
 	writeHtml(data, jsdom);
 	res.send(true);
@@ -100,6 +104,13 @@ async function readTemplate(temp) {
 	}
 }
 
+async function addNav(nav, jsdom) {
+	const navNode = jsdom.window.document.querySelector("[data-nav]");
+	const p = jsdom.window.document.createElement("p");
+	p.textContent = "hello, nav";
+	navNode.appendChild(p);
+}
+
 async function writeHtml(data, jsdom) {
 	await fs.mkdir("out", {recursive: true});
 	if (data.name === "index") {
@@ -108,6 +119,46 @@ async function writeHtml(data, jsdom) {
 		await fs.mkdir(`out/${data.name}`, {recursive: true});
 		await fs.writeFile(`out/${data.name}/index.html`, jsdom.serialize());
 	}
+}
+
+app.get("/:name/open", async (req, res) => {
+	const name = req.params.name;
+	res.json(await readSetting(name));
+});
+
+async function readSetting(name) {
+	let seting;
+	try {
+		const json = await fs.readFile(`setting/${name}.json`);
+		setting = JSON.parse(json);
+		if (setting.name !== name) {
+			console.warn("name mismatch => change setting.name!");
+			setting.name = name;
+		}
+	} catch(err) {
+		console.error(`cant open ${name}  => create new ${name}!!`);
+		setting = {};
+	}
+	return setting;
+}
+
+app.put("/:name/save/", async (req, res) => {
+	const name = req.params.name;
+	const setting = req.body;
+
+	const result = await writeSetting(name, setting);
+	res.send(result);
+});
+
+async function writeSetting(name, setting) {
+	if (setting.name !== name) {
+		console.error("name mismatch => setting not written!!");
+		return false;
+	}
+	
+	await fs.mkdir("setting", {recursive: true});
+	await fs.writeFile(`setting/${setting.name}.json`, JSON.stringify(setting, null, 4));
+	return true;
 }
 
 app.listen(port, () => console.log(`on ${port}`));
