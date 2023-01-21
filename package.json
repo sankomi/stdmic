@@ -4,7 +4,7 @@
 	"description": "a static and dynamic cms!",
 	"main": "index.js",
 	"scripts": {
-		"test": "nodemon --ignore data index.js"
+		"test": "nodemon index.js"
 	},
 	"author": "",
 	"license": "ISC",
@@ -14,5 +14,8 @@
 	},
 	"devDependencies": {
 		"nodemon": "^2.0.20"
+	},
+	"nodemonConfig": {
+		"ignore": ["data", "setting"]
 	}
 }

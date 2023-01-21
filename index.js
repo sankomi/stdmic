@@ -24,7 +24,7 @@ async function readData(name) {
 			data.name = name;
 		}
 	} catch(err) {
-		console.error("cant open data => create new data!!");
+		console.log("cant open data => create new data!!");
 		data = {name, ...await getTemplateDefaults("page")};
 	}
 	return data;
@@ -39,7 +39,7 @@ async function getTemplateDefaults(temp) {
 		nodes.forEach(node => defaults[node.dataset.edit] = node.textContent);
 	} catch (err) {
 		console.error(err);
-		console.log("cant find template => no defaults!!");
+		console.warn("cant find template => no defaults!!");
 	}
 	return defaults;
 }
@@ -54,7 +54,7 @@ app.put("/save/:name/", async (req, res) => {
 
 async function writeData(name, data) {
 	if (data.name !== name) {
-		console.error("name mismatch => data not writte!!");
+		console.error("name mismatch => data not written!!");
 		return false;
 	}
 
@@ -73,7 +73,7 @@ app.put("/make/:name/", async (req, res) => {
 
 	const jsdom = await readTemplate("page");
 	if (!jsdom) {
-		console.log("cant find template => fail!!");
+		console.error("cant find template => fail!!");
 		return res.send(false);
 	}
 
@@ -105,10 +105,45 @@ async function readTemplate(temp) {
 }
 
 async function addNav(nav, jsdom) {
-	const navNode = jsdom.window.document.querySelector("[data-nav]");
-	const p = jsdom.window.document.createElement("p");
-	p.textContent = "hello, nav";
-	navNode.appendChild(p);
+	const navNode = jsdom.window.document.querySelector("[data-nav=\"nav\"]");
+	if (!navNode) return console.warn("nav temp not found => nav not added!!");
+
+	const itemTemp = navNode.querySelector("[data-nav=\"item\"]");
+	if (!itemTemp) return console.warn("nav item temp not found => nav not added!!");
+	
+	nav.items.forEach(item => {
+		const itemNode = itemTemp.cloneNode(true);
+		const linkNode = itemNode.querySelector("[data-nav=\"link\"]");
+		if (!linkNode) return console.warn("nav link temp not found => link not added!!");
+		
+		linkNode.textContent = item.title;
+		linkNode.href = item.link;
+		itemTemp.parentNode.append(itemNode);
+
+		const subnavNode = itemNode.querySelector("[data-nav=\"subnav\"]");
+		if (!subnavNode) return console.warn("nav subnav temp not found => subnav not added!!");
+
+		const subitemTemp = itemNode.querySelector("[data-nav=\"subitem\"]");
+		if (!subitemTemp) return console.warn("nav subitem temp not found => subnav not added!!");
+
+		if (item.subitems) {
+			item.subitems.forEach(subitem => {
+				const subitemNode = subitemTemp.cloneNode(true);
+				const sublinkNode = subitemNode.querySelector("[data-nav=\"sublink\"]");
+				if (!sublinkNode) return console.warn("nav sublink temp not found => sublink not added!!");
+				
+				sublinkNode.textContent = subitem.title;
+				sublinkNode.href = subitem.link;
+				subitemTemp.parentNode.append(subitemNode);
+			});
+		} else {
+			itemNode.querySelector("[data-nav=\"subnav\"]").remove();
+		}
+
+		subitemTemp.remove();
+	});
+	
+	itemTemp.remove();
 }
 
 async function writeHtml(data, jsdom) {
@@ -136,8 +171,27 @@ async function readSetting(name) {
 			setting.name = name;
 		}
 	} catch(err) {
-		console.error(`cant open ${name}  => create new ${name}!!`);
-		setting = {};
+		console.log(`cant open ${name}  => create new ${name}!!`);
+		
+		if (name === "nav") {
+			setting = {
+				name,
+				items: [
+					{
+						title: "item",
+						link: "",
+						subitems: [
+							{
+								title: "subitem",
+								link: "",
+							}
+						],
+					}
+				],
+			};
+		} else {
+			setting = {name};
+		}
 	}
 	return setting;
 }
