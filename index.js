@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const app = express();
 const port = process.env.PORT || 3000;
@@ -214,5 +215,28 @@ async function writeSetting(name, setting) {
 	await fs.writeFile(`setting/${setting.name}.json`, JSON.stringify(setting, null, 4));
 	return true;
 }
+
+const ftp = require("basic-ftp");
+app.get("/upload/", async (req, res) => {
+	const client = new ftp.Client();
+	try {
+		await client.access({
+			host: process.env.FTP_HOST,
+			user: process.env.FTP_USER,
+			password: process.env.FTP_PASSWORD,
+			secure: true,
+		});
+		await client.cd(process.env.FTP_PATH);
+		await client.clearWorkingDir();
+		await client.uploadFromDir("out");
+	} catch (err) {
+		console.error(err);
+		console.error("error while uploading => fail!!");
+		return res.send(false);
+	} finally {
+		client.close();
+	}
+	res.send(true);
+});
 
 app.listen(port, () => console.log(`on ${port}`));

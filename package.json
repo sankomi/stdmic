@@ -9,6 +9,8 @@
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
+		"basic-ftp": "^5.0.2",
+		"dotenv": "^16.0.3",
 		"express": "^4.18.2",
 		"jsdom": "^21.0.0"
 	},
@@ -16,6 +18,9 @@
 		"nodemon": "^2.0.20"
 	},
 	"nodemonConfig": {
-		"ignore": ["data", "setting"]
+		"ignore": [
+			"data",
+			"setting"
+		]
 	}
 }
