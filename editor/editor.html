@@ -104,7 +104,8 @@
 			</div>
 			<div id="input" style="display: none">
 				<div class="select">
-					<input type="text" id="name" name="name">
+					<input type="text" id="name" name="name" list="list">
+					<datalist id="list"></datalist>
 					<button id="open">open</button>
 					<button id="save">save</button>
 					<button id="delete">delete</button>
@@ -130,13 +131,30 @@
 				const editor = document.querySelector("#editor");
 						
 				const input = document.querySelector("#input");
+				const list = document.querySelector("#list");
 
 				page.addEventListener("click", changeView.bind(this, "page"));
 				setting.addEventListener("click", changeView.bind(this, "setting"));
-				function changeView(selected, event) {
+				async function changeView(selected, event) {
 					view = selected;
+					getList(view);
 					reset();
 				}
+
+				async function getList(view) {
+					list.innerHTML = null;
+					await fetch(`/${view}/list/`)
+						.then(res => res.json())
+						.then(json => {
+							json.list.forEach(name => {
+								const option = document.createElement("option");
+								option.value = name;
+								list.appendChild(option);
+							});
+						})
+						.catch(console.error);
+				}
+
 				function reset() {
 					name.value = null;
 					editor.value = null;
@@ -144,14 +162,17 @@
 					else input.style.display = "none";
 				}
 
-				open.addEventListener("click", event => {
+				input.addEventListener("keypress", openFile);
+				open.addEventListener("click", openFile);
+				function openFile(event) {
+					if (event.type === "keypress" && event.key !== "Enter") return;
 					fetch(`/${view}/open/${name.value}/`)
 						.then(res => res.json())
 						.then(json => editor.value = JSON.stringify(json, null, 4));
-				});
+				}
 
 				save.addEventListener("click", event => {
-						fetch(`/${view}/save/${name.value}/`, {
+					fetch(`/${view}/save/${name.value}/`, {
 						method: "PUT",
 						headers: {
 							"Accept": "application/json",
@@ -160,7 +181,8 @@
 						body: editor.value,
 					})
 						.then(res => res.json())
-						.then(console.log);
+						.then(console.log)
+						.finally(getList(view));
 				});
 
 				del.addEventListener("click", event => {
@@ -172,7 +194,8 @@
 						},
 					})
 						.then(res => res.json())
-						.then(console.log);
+						.then(console.log)
+						.finally(getList(view));
 				});
 
 				make.addEventListener("click", event => {

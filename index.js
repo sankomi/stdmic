@@ -13,6 +13,21 @@ app.get("/editor/", (req, res) => {
 app.use(express.static(path.join(__dirname, "out")));
 app.use(express.json({extended: false}));
 
+app.get("/page/list/", async (req, res) => {
+	const names = await fs.readdir("data");
+	
+	const list = names.filter(name => ~name.indexOf(".json"))
+		.map(name => {
+			const index = name.indexOf(".json");
+			return name.substring(0, index);
+		});
+
+	res.json({
+		sucess: true,
+		list,
+	});
+});
+
 app.get("/page/open/:name/", async (req, res) => {
 	const name = req.params.name;
 	res.json(await readData(name));
@@ -198,6 +213,21 @@ async function writeHtml(data, jsdom) {
 		await fs.writeFile(`out/${data.name}/index.html`, jsdom.serialize());
 	}
 }
+
+app.get("/setting/list/", async (req, res) => {
+	const names = await fs.readdir("setting");
+	
+	const list = names.filter(name => ~name.indexOf(".json"))
+		.map(name => {
+			const index = name.indexOf(".json");
+			return name.substring(0, index);
+		});
+
+	res.json({
+		sucess: true,
+		list,
+	});
+});
 
 app.get("/setting/open/:name/", async (req, res) => {
 	const name = req.params.name;
