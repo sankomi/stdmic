@@ -90,7 +90,7 @@ app.delete("/page/delete/:name/", async (req, res) => {
 });
 
 async function deleteData(name) {
-	try {	
+	try {
 		await fs.rm(`data/${name}.json`);
 		return true;
 	} catch(err) {
@@ -99,6 +99,8 @@ async function deleteData(name) {
 	}
 }
 
+const {Remarkable} = require("remarkable");
+const remark = new Remarkable();
 app.put("/make/", async (req, res) => {
 	await fs.rm("out", {recursive: true});
 	
@@ -130,7 +132,12 @@ app.put("/make/", async (req, res) => {
 		nodes.forEach(node => map.set(node.dataset.edit, node));
 
 		for (const [key, value] of Object.entries(data)) {
-			if (map.has(key)) map.get(key).textContent = value;
+			if (!map.has(key)) continue;
+			if (value.indexOf("{{") === 0 && value.indexOf("}}") === value.length - 2) {
+				map.get(key).innerHTML = remark.render(await readMarkdown(value.slice(2, -2)));
+			} else {
+				map.get(key).textContent = value;
+			}
 		}
 
 		const nav = await readSetting("nav");
@@ -211,6 +218,58 @@ async function writeHtml(data, jsdom) {
 	} else {
 		await fs.mkdir(`out/${data.name}`, {recursive: true});
 		await fs.writeFile(`out/${data.name}/index.html`, jsdom.serialize());
+	}
+}
+
+app.get("/markdown/open/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.send(await readMarkdown(name));
+});
+
+async function readMarkdown(name) {
+	try {
+		return await fs.readFile(`markdown/${name}.md`, "utf8");
+	} catch(err) {
+		console.log(`cant open markdown/${name}.md => no content!!`);
+		return "";
+	}
+}
+
+app.put("/markdown/save/:name/", async (req, res) => {
+	const name = req.params.name;
+	const markdown = req.body;
+
+	const result = await writeMarkdown(name, markdown);
+	res.send(result);
+});
+
+async function writeMarkdown(name, markdown) {
+	try {
+		await fs.mkdir("markdown", {recursive: true});
+		await fs.writeFile(`markdown/${name}.md`, markdown);
+		return true;
+	} catch (err) {
+		console.error(err);
+		console.error(`cant write markdown/${name}.md => fail!!`);
+		return false;
+	}
+}
+
+app.delete("/markdown/delete/:name/", async (req, res) => {
+	const name = req.params.name;
+	
+	const result = await deleteMarkdown(name);
+	res.send(result);
+});
+
+async function deleteMarkdown(name) {
+	try {	
+		await fs.rm(`markdown/${name}.md`);
+		return true;
+	} catch(err) {
+		console.error(err);
+		console.err(`cant delete markdown/${name}.md => fail!!`);
+		return false;
 	}
 }
 
