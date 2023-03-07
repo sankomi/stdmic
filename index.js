@@ -12,6 +12,7 @@ app.get("/editor/", (req, res) => {
 
 app.use(express.static(path.join(__dirname, "out")));
 app.use(express.json({extended: false}));
+app.use(express.text());
 
 app.get("/page/list/", async (req, res) => {
 	const names = await fs.readdir("data");
@@ -102,6 +103,7 @@ async function deleteData(name) {
 const {Remarkable} = require("remarkable");
 const remark = new Remarkable();
 app.put("/make/", async (req, res) => {
+	await fs.mkdir("out", {recursive: true});
 	await fs.rm("out", {recursive: true});
 	
 	await copyStatic();
@@ -221,6 +223,21 @@ async function writeHtml(data, jsdom) {
 	}
 }
 
+app.get("/markdown/list/", async (req, res) => {
+	const names = await fs.readdir("markdown");
+
+	const list = names.filter(name => ~name.indexOf(".md"))
+		.map(name => {
+			const index = name.indexOf(".md");
+			return name.substring(0, index);
+		});
+
+	res.json({
+		sucess: true,
+		list,
+	});
+});
+
 app.get("/markdown/open/:name/", async (req, res) => {
 	const name = req.params.name;
 	res.send(await readMarkdown(name));
@@ -245,6 +262,7 @@ app.put("/markdown/save/:name/", async (req, res) => {
 
 async function writeMarkdown(name, markdown) {
 	try {
+		console.log(markdown);
 		await fs.mkdir("markdown", {recursive: true});
 		await fs.writeFile(`markdown/${name}.md`, markdown);
 		return true;

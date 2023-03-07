@@ -97,6 +97,7 @@
 			<h1>stdmic editor</h1>
 			<div class="menu">
 				<button id="page">page</button>
+				<button id="markdown">markdown</button>
 				<button id="setting">setting</button>
 				<span class="gap"></span>
 				<button id="make">make</button>
@@ -120,6 +121,7 @@
 			{
 				let view = null;
 				const page = document.querySelector("#page");
+				const markdown = document.querySelector("#markdown");
 				const setting = document.querySelector("#setting");
 
 				const name = document.querySelector("#name");
@@ -134,6 +136,7 @@
 				const list = document.querySelector("#list");
 
 				page.addEventListener("click", changeView.bind(this, "page"));
+				markdown.addEventListener("click", changeView.bind(this, "markdown"));
 				setting.addEventListener("click", changeView.bind(this, "setting"));
 				async function changeView(selected, event) {
 					view = selected;
@@ -162,27 +165,48 @@
 					else input.style.display = "none";
 				}
 
-				input.addEventListener("keypress", openFile);
+				name.addEventListener("keypress", openFile);
 				open.addEventListener("click", openFile);
 				function openFile(event) {
 					if (event.type === "keypress" && event.key !== "Enter") return;
-					fetch(`/${view}/open/${name.value}/`)
-						.then(res => res.json())
-						.then(json => editor.value = JSON.stringify(json, null, 4));
+
+					if (view === "markdown") {
+						fetch(`/${view}/open/${name.value}/`)
+							.then(res => res.text())
+							.then(text => editor.value = text);
+					} else {
+						fetch(`/${view}/open/${name.value}/`)
+							.then(res => res.json())
+							.then(json => editor.value = JSON.stringify(json, null, 4));
+					}
 				}
 
 				save.addEventListener("click", event => {
-					fetch(`/${view}/save/${name.value}/`, {
-						method: "PUT",
-						headers: {
-							"Accept": "application/json",
-							"Content-Type": "application/json",
-						},
-						body: editor.value,
-					})
-						.then(res => res.json())
-						.then(console.log)
-						.finally(getList(view));
+					if (view === "markdown") {
+						fetch(`/${view}/save/${name.value}/`, {
+							method: "PUT",
+							headers: {
+								"Accept": "application/json",
+								"Content-Type": "text/plain",
+							},
+							body: editor.value,
+						})
+							.then(res => res.json())
+							.then(console.log)
+							.finally(getList(view));
+					} else {
+						fetch(`/${view}/save/${name.value}/`, {
+							method: "PUT",
+							headers: {
+								"Accept": "application/json",
+								"Content-Type": "application/json",
+							},
+							body: editor.value,
+						})
+							.then(res => res.json())
+							.then(console.log)
+							.finally(getList(view));
+					}
 				});
 
 				del.addEventListener("click", event => {
