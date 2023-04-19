@@ -15,6 +15,7 @@ app.use(express.json({extended: false}));
 app.use(express.text());
 
 app.get("/page/list/", async (req, res) => {
+	await fs.mkdir("data", {recursive: true});
 	const names = await fs.readdir("data");
 	
 	const list = names.filter(name => ~name.indexOf(".json"))
@@ -24,7 +25,7 @@ app.get("/page/list/", async (req, res) => {
 		});
 
 	res.json({
-		sucess: true,
+		success: true,
 		list,
 	});
 });
@@ -43,7 +44,7 @@ async function readData(name) {
 			console.warn("name mismatch => change data.name!");
 			data.name = name;
 		}
-	} catch(err) {
+	} catch (err) {
 		console.log("cant open data => create new data!!");
 		data = {name, ...await getTemplateDefaults("page")};
 	}
@@ -94,7 +95,7 @@ async function deleteData(name) {
 	try {
 		await fs.rm(`data/${name}.json`);
 		return true;
-	} catch(err) {
+	} catch (err) {
 		console.err(`cant delete ${name} => data not deleted!!`);
 		return false;
 	}
@@ -156,7 +157,7 @@ async function copyStatic() {
 	try {
 		const files = await fs.readdir("static");
 		await Promise.all(files.map(file => fs.copyFile(`static/${file}`, `out/${file}`)));
-	} catch(err) {
+	} catch (err) {
 		console.error("cant copy static files => not copied!!");
 	}
 }
@@ -223,7 +224,81 @@ async function writeHtml(data, jsdom) {
 	}
 }
 
+app.get("/post/list/", async (req, res) => {
+	await fs.mkdir("post", {recursive: true});
+	const names = await fs.readdir("post");
+
+	const list = names.filter(name => ~name.indexOf(".json"))
+		.map(name => {
+			const index = name.indexOf(".json");
+			return name.substring(0, index);
+		});
+
+	res.json({
+		success: true,
+		list,
+	});
+});
+
+app.get("/post/open/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.json(await readPost(name));
+});
+
+async function readPost(name) {
+	let post;
+	try {
+		const json = await fs.readFile(`post/${name}.json`);
+		post = JSON.parse(json);
+		if (post.name !== name) {
+			console.warn("name mismatch => change post.name!");
+			post.name = name;
+		}
+	} catch (err) {
+		console.log("cant open post => create new post!!");
+		post = {name, ...await getTemplateDefaults("post")};
+	}
+	return post;
+}
+
+app.put("/post/save/:name/", async (req, res) => {
+	const name = req.params.name;
+	const post = req.body;
+
+	const result = await writePost(name, post);
+	res.send(result);
+});
+
+async function writePost(name, post) {
+	if (post.name !== name) {
+		console.error("name mismatch => post not written!!");
+		return false;
+	}
+
+	await fs.mkdir("post", {recursive: true});
+	await fs.writeFile(`post/${post.name}.json`, JSON.stringify(post, null, 4));
+	return true;
+}
+
+app.delete("/post/delete/:name/", async (req, res) => {
+	const name = req.params.name;
+	
+	const result = await deletePost(name);
+	res.send(result);
+});
+
+async function deletePost(name) {
+	try {
+		await fs.rm(`post/${name}.json`);
+		return true;
+	} catch (err) {
+		console.err(`cant delete ${name} => post not deleted!!`);
+		return false;
+	}
+}
+
 app.get("/markdown/list/", async (req, res) => {
+	await fs.mkdir("markdown", {recursive: true});
 	const names = await fs.readdir("markdown");
 
 	const list = names.filter(name => ~name.indexOf(".md"))
@@ -233,7 +308,7 @@ app.get("/markdown/list/", async (req, res) => {
 		});
 
 	res.json({
-		sucess: true,
+		success: true,
 		list,
 	});
 });
@@ -246,7 +321,7 @@ app.get("/markdown/open/:name/", async (req, res) => {
 async function readMarkdown(name) {
 	try {
 		return await fs.readFile(`markdown/${name}.md`, "utf8");
-	} catch(err) {
+	} catch (err) {
 		console.log(`cant open markdown/${name}.md => no content!!`);
 		return "";
 	}
@@ -262,7 +337,6 @@ app.put("/markdown/save/:name/", async (req, res) => {
 
 async function writeMarkdown(name, markdown) {
 	try {
-		console.log(markdown);
 		await fs.mkdir("markdown", {recursive: true});
 		await fs.writeFile(`markdown/${name}.md`, markdown);
 		return true;
@@ -284,7 +358,7 @@ async function deleteMarkdown(name) {
 	try {	
 		await fs.rm(`markdown/${name}.md`);
 		return true;
-	} catch(err) {
+	} catch (err) {
 		console.error(err);
 		console.err(`cant delete markdown/${name}.md => fail!!`);
 		return false;
@@ -292,6 +366,7 @@ async function deleteMarkdown(name) {
 }
 
 app.get("/setting/list/", async (req, res) => {
+	await fs.mkdir("setting", {recursive: true});
 	const names = await fs.readdir("setting");
 	
 	const list = names.filter(name => ~name.indexOf(".json"))
@@ -301,7 +376,7 @@ app.get("/setting/list/", async (req, res) => {
 		});
 
 	res.json({
-		sucess: true,
+		success: true,
 		list,
 	});
 });
@@ -320,7 +395,7 @@ async function readSetting(name) {
 			console.warn("name mismatch => change setting.name!");
 			setting.name = name;
 		}
-	} catch(err) {
+	} catch (err) {
 		console.log(`cant open ${name}  => create new ${name}!!`);
 		
 		if (name === "nav") {
@@ -376,7 +451,7 @@ async function deleteSetting(name) {
 	try {	
 		await fs.rm(`setting/${name}.json`);
 		return true;
-	} catch(err) {
+	} catch (err) {
 		console.err(`cant delete ${name} => setting not deleted!!`);
 		return false;
 	}

@@ -97,6 +97,7 @@
 			<h1>stdmic editor</h1>
 			<div class="menu">
 				<button id="page">page</button>
+				<button id="post">post</button>
 				<button id="markdown">markdown</button>
 				<button id="setting">setting</button>
 				<span class="gap"></span>
@@ -121,6 +122,7 @@
 			{
 				let view = null;
 				const page = document.querySelector("#page");
+				const post = document.querySelector("#post");
 				const markdown = document.querySelector("#markdown");
 				const setting = document.querySelector("#setting");
 
@@ -136,6 +138,7 @@
 				const list = document.querySelector("#list");
 
 				page.addEventListener("click", changeView.bind(this, "page"));
+				post.addEventListener("click", changeView.bind(this, "post"));
 				markdown.addEventListener("click", changeView.bind(this, "markdown"));
 				setting.addEventListener("click", changeView.bind(this, "setting"));
 				async function changeView(selected, event) {
