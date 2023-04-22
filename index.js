@@ -41,7 +41,7 @@ async function readData(name) {
 		const json = await fs.readFile(`data/${name}.json`);
 		data = JSON.parse(json);
 		if (data.name !== name) {
-			console.warn("name mismatch => change data.name!");
+			console.warn("name mismatch => change data.name!!");
 			data.name = name;
 		}
 	} catch (err) {
@@ -109,7 +109,9 @@ app.put("/make/", async (req, res) => {
 	
 	await copyStatic();
 
-	const names = await fs.readdir("data");
+	const nav = await readSetting("nav");
+	await fs.mkdir("data", {recursive: true});
+	let names = await fs.readdir("data");
 	
 	names.forEach(async name => {
 		const index = name.indexOf(".json");
@@ -143,10 +145,49 @@ app.put("/make/", async (req, res) => {
 			}
 		}
 
-		const nav = await readSetting("nav");
 		await addNav(nav, jsdom);
 		
-		writeHtml(data, jsdom);
+		writeHtml(data.name, jsdom);
+	});
+
+	await fs.mkdir("post", {recursive: true});
+	names = await fs.readdir("post");
+	
+	names.forEach(async name => {
+		const index = name.indexOf(".json");
+		if (!~index) return;
+		name = name.substring(0, index);
+		
+		const post = await readPost(name);
+		if (post.name !== name) {
+			console.error("${name}: name mismatch => fail!!");
+			return;
+		}
+
+		const jsdom = await readTemplate("post");
+		if (!jsdom) {
+			console.error("cant find post template => fail!!");
+			return;
+		}
+
+		jsdom.window.document.title = post.title || "untitled";
+
+		const nodes = jsdom.window.document.querySelectorAll("[data-edit]");
+		const map = new Map();
+		nodes.forEach(node => map.set(node.dataset.edit, node));
+
+		for (const [key, value] of Object.entries(post)) {
+			if (!map.has(key)) continue;
+			if (value.indexOf("{{") === 0 && value.indexOf("}}") === value.length - 2) {
+				map.get(key).innerHTML = remark.render(await readMarkdown(value.slice(2, -2)));
+			} else {
+				map.get(key).textContent = value;
+			}
+		}
+
+		await addNav(nav, jsdom);
+		
+		writeHtml(post.name, jsdom, "post/");
 	});
 	
 	res.send(true);
@@ -214,13 +255,13 @@ async function addNav(nav, jsdom) {
 	itemTemp.remove();
 }
 
-async function writeHtml(data, jsdom) {
+async function writeHtml(name, jsdom, path = "") {
 	await fs.mkdir("out", {recursive: true});
-	if (data.name === "index") {
-		await fs.writeFile(`out/index.html`, jsdom.serialize());
+	if (name === "index") {
+		await fs.writeFile(`out/${path}index.html`, jsdom.serialize());
 	} else {
-		await fs.mkdir(`out/${data.name}`, {recursive: true});
-		await fs.writeFile(`out/${data.name}/index.html`, jsdom.serialize());
+		await fs.mkdir(`out/${path}${name}`, {recursive: true});
+		await fs.writeFile(`out/${path}${name}/index.html`, jsdom.serialize());
 	}
 }
 
@@ -251,7 +292,7 @@ async function readPost(name) {
 		const json = await fs.readFile(`post/${name}.json`);
 		post = JSON.parse(json);
 		if (post.name !== name) {
-			console.warn("name mismatch => change post.name!");
+			console.warn("name mismatch => change post.name!!");
 			post.name = name;
 		}
 	} catch (err) {
@@ -392,7 +433,7 @@ async function readSetting(name) {
 		const json = await fs.readFile(`setting/${name}.json`);
 		setting = JSON.parse(json);
 		if (setting.name !== name) {
-			console.warn("name mismatch => change setting.name!");
+			console.warn("name mismatch => change setting.name!!");
 			setting.name = name;
 		}
 	} catch (err) {
