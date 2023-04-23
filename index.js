@@ -153,7 +153,9 @@ app.put("/make/", async (req, res) => {
 	await fs.mkdir("post", {recursive: true});
 	names = await fs.readdir("post");
 	
-	names.forEach(async name => {
+	posts = [];
+
+	await Promise.all(names.map(async name => {
 		const index = name.indexOf(".json");
 		if (!~index) return;
 		name = name.substring(0, index);
@@ -188,8 +190,40 @@ app.put("/make/", async (req, res) => {
 		await addNav(nav, jsdom);
 		
 		writeHtml(post.name, jsdom, "post/");
-	});
+
+		posts.push(post.name);
+	}));
 	
+	(async () => {
+		if (!posts.length) return;
+
+		const jsdom = await readTemplate("list");
+		if (!jsdom) return console.error("cant find list template => fail!!");
+
+		const doc = jsdom.window.document;
+		const listNode = doc.querySelector("[data-list=\"list\"]");
+		if (!listNode) return console.error("list temp not found => fail!!");
+
+		const itemTemp = listNode.querySelector("[data-list=\"item\"]");
+		if (!itemTemp) return console.error("post item temp not found => fail!!");
+
+		posts.forEach(post => {
+			const itemNode = itemTemp.cloneNode(true);
+			const linkNode = itemNode.querySelector("[data-list=\"link\"]");
+			if (!linkNode) return console.warn("post link not found => link not added!!");
+
+			linkNode.textContent = post;
+			linkNode.href = `/post/${post}`;
+			itemTemp.parentNode.append(itemNode);
+		});
+
+		itemTemp.remove();
+
+		await addNav(nav, jsdom);
+
+		writeHtml("index", jsdom, "post/");
+	})();
+
 	res.send(true);
 });
 
@@ -258,6 +292,7 @@ async function addNav(nav, jsdom) {
 async function writeHtml(name, jsdom, path = "") {
 	await fs.mkdir("out", {recursive: true});
 	if (name === "index") {
+		await fs.mkdir(`out/${path}`, {recursive: true});
 		await fs.writeFile(`out/${path}index.html`, jsdom.serialize());
 	} else {
 		await fs.mkdir(`out/${path}${name}`, {recursive: true});
