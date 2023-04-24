@@ -96,7 +96,7 @@ async function deleteData(name) {
 		await fs.rm(`data/${name}.json`);
 		return true;
 	} catch (err) {
-		console.err(`cant delete ${name} => data not deleted!!`);
+		console.error(`cant delete ${name} => data not deleted!!`);
 		return false;
 	}
 }
@@ -368,7 +368,7 @@ async function deletePost(name) {
 		await fs.rm(`post/${name}.json`);
 		return true;
 	} catch (err) {
-		console.err(`cant delete ${name} => post not deleted!!`);
+		console.error(`cant delete ${name} => post not deleted!!`);
 		return false;
 	}
 }
@@ -436,7 +436,7 @@ async function deleteMarkdown(name) {
 		return true;
 	} catch (err) {
 		console.error(err);
-		console.err(`cant delete markdown/${name}.md => fail!!`);
+		console.error(`cant delete markdown/${name}.md => fail!!`);
 		return false;
 	}
 }
@@ -528,7 +528,7 @@ async function deleteSetting(name) {
 		await fs.rm(`setting/${name}.json`);
 		return true;
 	} catch (err) {
-		console.err(`cant delete ${name} => setting not deleted!!`);
+		console.error(`cant delete ${name} => setting not deleted!!`);
 		return false;
 	}
 }
@@ -554,6 +554,38 @@ app.put("/upload/", async (req, res) => {
 		client.close();
 	}
 	res.send(true);
+});
+
+const multer = require("multer");
+const storage = multer.diskStorage({
+	destination: (req, file, callback) => {
+		callback(null, "file");
+	},
+	filename: (req, file, callback) => {
+		callback(null, file.originalname);
+	},
+});
+
+const upload = multer({storage});
+app.post("/file/add/", upload.single("file"), (req, res, next) => {
+	res.send(true);
+});
+
+app.get("/file/list/", async (req, res) => {
+	await fs.mkdir("file", {recursive: true});
+	const files = await fs.readdir("file");
+
+	res.json(files);
+});
+
+app.get("/file/:name/", async (req, res) => {
+	const file = path.join(__dirname, "file", req.params.name);
+	const exists = await fs.stat(file)
+		.then(() => true)
+		.catch(() => false);
+	
+	if (exists) res.sendFile(file);
+	else res.sendStatus(404);
 });
 
 app.listen(port, () => console.log(`on ${port}`));
