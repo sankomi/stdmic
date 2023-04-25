@@ -107,7 +107,7 @@ app.put("/make/", async (req, res) => {
 	await fs.mkdir("out", {recursive: true});
 	await fs.rm("out", {recursive: true});
 	
-	await copyStatic();
+	await copyFiles();
 
 	const nav = await readSetting("nav");
 	await fs.mkdir("data", {recursive: true});
@@ -227,13 +227,20 @@ app.put("/make/", async (req, res) => {
 	res.send(true);
 });
 
-async function copyStatic() {
-	await fs.mkdir("out", {recursive: true});
+async function copyFiles() {
+	await fs.mkdir("out/file", {recursive: true});
 	try {
 		const files = await fs.readdir("static");
 		await Promise.all(files.map(file => fs.copyFile(`static/${file}`, `out/${file}`)));
 	} catch (err) {
 		console.error("cant copy static files => not copied!!");
+	}
+	
+	try {
+		const files = await fs.readdir("file");
+		await Promise.all(files.map(file => fs.copyFile(`file/${file}`, `out/file/${file}`)));
+	} catch (err) {
+		console.error("cant copy files => not copied!!");
 	}
 }
 
@@ -562,7 +569,9 @@ const storage = multer.diskStorage({
 		callback(null, "file");
 	},
 	filename: (req, file, callback) => {
-		callback(null, file.originalname);
+		let filename = file.originalname.trim();
+		while (filename[0] === ".") filename = filename.substring(1);
+		callback(null, filename);
 	},
 });
 
@@ -583,9 +592,19 @@ app.get("/file/:name/", async (req, res) => {
 	const exists = await fs.stat(file)
 		.then(() => true)
 		.catch(() => false);
-	
+
 	if (exists) res.sendFile(file);
 	else res.sendStatus(404);
+});
+
+app.delete("/file/remove/:name/", async (req, res) => {
+	const name = req.params.name;
+	await fs.mkdir("file", {recursive: true});
+	await fs.unlink(`file/${name}`)
+		.catch(err => {
+			console.error("cant unlinkfile => not removed!!");
+		});
+	res.send(true);
 });
 
 app.listen(port, () => console.log(`on ${port}`));

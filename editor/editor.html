@@ -99,8 +99,46 @@
 				resize: vertical;
 			}
 
-			.form {
+			#file-form {
+				display: flex;
+				gap: 1ch;
+
 				line-height: 2;
+			}
+			#file-form > input[type="file"] {
+				flex-grow: 1;
+			}
+			#file-input {
+				flex-grow: 1;
+
+				display: flex;
+				flex-direction: column;
+				gap: 1rem;
+			}
+			#file-list {
+				flex-grow: 1rem;
+			}
+			#file-list ul {
+				padding: 0;
+				margin: 0;
+
+				list-style-type: none;
+			}
+			#file-list li {
+				display: flex;
+				align-items: center;
+				gap: 1rem;
+
+				line-height: 2;
+			}
+			#file-list li:not(:last-of-type) {
+				margin-bottom: 1rem;
+			}
+			#file-list a {
+				flex-grow: 1;
+
+				line-height: 1;
+				overflow-wrap: anywhere;
 			}
 		</style>
 	</head>
@@ -111,56 +149,19 @@
 				<button id="page">page</button>
 				<button id="post">post</button>
 				<button id="markdown">markdown</button>
+				<button id="file">file</button>
 				<button id="setting">setting</button>
 				<span class="gap"></span>
 				<button id="make">make</button>
 				<button id="upload">upload</button>
 			</div>
-			<div class="files">
-				<form id="file" class="form" enctype="multipart/form-data">
+			<div id="file-input" style="display: none;">
+				<form id="file-form" enctype="multipart/form-data">
 					<input type="file" name="file">
-					<button id="add">add</button>
-					<button id="show">show</button>
+					<button id="file-add">add</button>
 				</form>
-				<div id="thumb"></div>
+				<div id="file-list"></div>
 			</div>
-			<script>
-				{
-					const add = document.querySelector("#add");
-					const show = document.querySelector("#show");
-					const thumb = document.querySelector("#thumb");
-					add.addEventListener("click", event => {
-						event.preventDefault();
-						const data = new FormData(file);
-						fetch("/file/add/", {
-							method: "POST",
-							body: data,
-						})
-							.then(res => res.text())
-							.then(() => {
-								file.reset();
-							})
-							.catch(console.error);
-					});
-					show.addEventListener("click", event => {
-					event.preventDefault();
-						fetch("/file/list/")
-							.then(res => res.json())
-							.then(files => {
-								thumb.innerHTML = null;
-								files.forEach(file => {
-									const img = document.createElement("img");
-									img.src = `/file/${file}`;
-									img.style.width = "100px";
-									img.style.height = "100px";
-									img.style.objectFit = "cover";
-									thumb.appendChild(img);
-								});
-							})
-							.catch(console.error);
-					});
-				}
-			</script>
 			<div id="input" style="display: none">
 				<div class="select">
 					<input type="text" id="name" name="name" list="list">
@@ -177,10 +178,60 @@
 		
 		<script>
 			{
+				const fileForm = document.querySelector("#file-form");
+				const fileAdd = document.querySelector("#file-add");
+				const fileList = document.querySelector("#file-list");
+				fileAdd.addEventListener("click", event => {
+					event.preventDefault();
+					const data = new FormData(fileForm);
+					fetch("/file/add/", {
+						method: "POST",
+						body: data,
+					})
+						.then(res => res.text())
+						.then(() => {
+							fileForm.reset();
+							showFiles();
+						})
+						.catch(console.error);
+				});
+				function showFiles() {
+					fetch("/file/list/")
+						.then(res => res.json())
+						.then(files => {
+							fileList.innerHTML = null;
+							const ul = document.createElement("ul");
+							fileList.appendChild(ul);
+
+							files.forEach(file => {
+								const li = document.createElement("li");
+								const link = document.createElement("a");
+								link.href = `/file/${file}`;
+								link.target = "_blank";
+								link.textContent = file;
+								const button = document.createElement("button");
+								button.textContent = "remove";
+								button.addEventListener("click", event => {
+									fetch(`/file/remove/${file}/`, {
+										method: "DELETE",
+									})
+										.then(res => res.text())
+										.then(showFiles())
+										.catch(console.error);
+								});
+								li.appendChild(button);
+								li.appendChild(link);
+								ul.appendChild(li);
+							});
+						})
+						.catch(console.error);
+				}
+
 				let view = null;
 				const page = document.querySelector("#page");
 				const post = document.querySelector("#post");
 				const markdown = document.querySelector("#markdown");
+				const file = document.querySelector("#file");
 				const setting = document.querySelector("#setting");
 
 				const name = document.querySelector("#name");
@@ -192,20 +243,32 @@
 				const editor = document.querySelector("#editor");
 						
 				const input = document.querySelector("#input");
+				const fileInput = document.querySelector("#file-input");
 				const list = document.querySelector("#list");
 
 				page.addEventListener("click", changeView.bind(this, "page"));
 				post.addEventListener("click", changeView.bind(this, "post"));
 				markdown.addEventListener("click", changeView.bind(this, "markdown"));
 				setting.addEventListener("click", changeView.bind(this, "setting"));
+				file.addEventListener("click", changeView.bind(this, "file"));
 				async function changeView(selected, event) {
-					view = selected;
-					getList(view);
+					if (view === selected) {
+						view = null;
+					} else {
+						view = selected;
+						getList(view);
+					}
 					reset();
 				}
 
 				async function getList(view) {
 					list.innerHTML = null;
+
+					if (view === "file") {
+						showFiles();
+						return;
+					}
+
 					fetch(`/${view}/list/`)
 						.then(res => res.json())
 						.then(json => {
@@ -221,8 +284,10 @@
 				function reset() {
 					name.value = null;
 					editor.value = null;
-					if (view) input.style.display = null;
-					else input.style.display = "none";
+					fileInput.style.display = "none";
+					input.style.display = "none";
+					if (view === "file") fileInput.style.display = null;
+					else if (view) input.style.display = null;
 				}
 
 				name.addEventListener("keypress", openFile);
