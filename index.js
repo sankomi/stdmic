@@ -213,7 +213,8 @@ app.put("/make/", async (req, res) => {
 			if (!linkNode) return console.warn("post link not found => link not added!!");
 
 			linkNode.textContent = post;
-			linkNode.href = `/post/${post}`;
+			post = post.toLowerCase().replaceAll(" ", "-").replaceAll(/[^-a-z0-9]/g, "");
+			linkNode.href = `/post/${post}/`;
 			itemTemp.parentNode.append(itemNode);
 		});
 
@@ -298,6 +299,7 @@ async function addNav(nav, jsdom) {
 
 async function writeHtml(name, jsdom, path = "") {
 	await fs.mkdir("out", {recursive: true});
+	name = name.toLowerCase().replaceAll(" ", "-").replaceAll(/[^-a-z0-9]/g, "");
 	if (name === "index") {
 		await fs.mkdir(`out/${path}`, {recursive: true});
 		await fs.writeFile(`out/${path}index.html`, jsdom.serialize());
