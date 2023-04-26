@@ -21,7 +21,7 @@
 	},
 	"nodemonConfig": {
 		"ignore": [
-			"data/*",
+			"page/*",
 			"post/*",
 			"setting/*"
 		]

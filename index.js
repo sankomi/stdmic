@@ -6,6 +6,8 @@ const JSDOM = require("jsdom").JSDOM;
 const fs = require("fs").promises;
 const path = require("path");
 
+const inout = require("./inout");
+
 app.get("/editor/", (req, res) => {
 	res.sendFile(path.join(__dirname, "editor/editor.html"));
 });
@@ -14,42 +16,35 @@ app.use(express.static(path.join(__dirname, "out")));
 app.use(express.json({extended: false}));
 app.use(express.text());
 
-app.get("/page/list/", async (req, res) => {
-	await fs.mkdir("data", {recursive: true});
-	const names = await fs.readdir("data");
-	
-	const list = names.filter(name => ~name.indexOf(".json"))
-		.map(name => {
-			const index = name.indexOf(".json");
-			return name.substring(0, index);
-		});
 
+//page
+
+app.get("/page/list/", async (req, res) => {
 	res.json({
 		success: true,
-		list,
+		list: await inout.listPage(),
 	});
 });
 
 app.get("/page/open/:name/", async (req, res) => {
 	const name = req.params.name;
-	res.json(await readData(name));
+	res.json(await inout.readPage(name));
 });
 
-async function readData(name) {
-	let data;
-	try {
-		const json = await fs.readFile(`data/${name}.json`);
-		data = JSON.parse(json);
-		if (data.name !== name) {
-			console.warn("name mismatch => change data.name!!");
-			data.name = name;
-		}
-	} catch (err) {
-		console.log("cant open data => create new data!!");
-		data = {name, ...await getTemplateDefaults("page")};
-	}
-	return data;
-}
+app.put("/page/save/:name/", async (req, res) => {
+	const name = req.params.name;
+	const data = req.body;
+
+	const result = await inout.writePage(name, data);
+	res.send(result);
+});
+
+app.delete("/page/delete/:name/", async (req, res) => {
+	const name = req.params.name;
+	
+	const result = await inout.unlinkPage(name);
+	res.send(result);
+});
 
 async function getTemplateDefaults(temp) {
 	let jsdom;
@@ -65,42 +60,6 @@ async function getTemplateDefaults(temp) {
 	return defaults;
 }
 
-app.put("/page/save/:name/", async (req, res) => {
-	const name = req.params.name;
-	const data = req.body;
-
-	const result = await writeData(name, data);
-	res.send(result);
-});
-
-async function writeData(name, data) {
-	if (data.name !== name) {
-		console.error("name mismatch => data not written!!");
-		return false;
-	}
-
-	await fs.mkdir("data", {recursive: true});
-	await fs.writeFile(`data/${data.name}.json`, JSON.stringify(data, null, 4));
-	return true;
-}
-
-app.delete("/page/delete/:name/", async (req, res) => {
-	const name = req.params.name;
-	
-	const result = await deleteData(name);
-	res.send(result);
-});
-
-async function deleteData(name) {
-	try {
-		await fs.rm(`data/${name}.json`);
-		return true;
-	} catch (err) {
-		console.error(`cant delete ${name} => data not deleted!!`);
-		return false;
-	}
-}
-
 const {Remarkable} = require("remarkable");
 const remark = new Remarkable();
 app.put("/make/", async (req, res) => {
@@ -110,15 +69,15 @@ app.put("/make/", async (req, res) => {
 	await copyFiles();
 
 	const nav = await readSetting("nav");
-	await fs.mkdir("data", {recursive: true});
-	let names = await fs.readdir("data");
+	await fs.mkdir("page", {recursive: true});
+	let names = await fs.readdir("page");
 	
 	names.forEach(async name => {
 		const index = name.indexOf(".json");
 		if (!~index) return;
 		name = name.substring(0, index);
 		
-		const data = await readData(name);
+		const data = await inout.readPage(name);
 		if (data.name !== name) {
 			console.error("${name}: name mismatch => fail!!");
 			return;
