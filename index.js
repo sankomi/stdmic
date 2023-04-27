@@ -34,31 +34,66 @@ app.get("/page/open/:name/", async (req, res) => {
 app.put("/page/save/:name/", async (req, res) => {
 	const name = req.params.name;
 	const data = req.body;
-
-	const result = await inout.writePage(name, data);
-	res.send(result);
+	res.send(await inout.writePage(name, data));
 });
 
 app.delete("/page/delete/:name/", async (req, res) => {
 	const name = req.params.name;
-	
-	const result = await inout.unlinkPage(name);
-	res.send(result);
+	res.send(await inout.unlinkPage(name));
 });
 
-async function getTemplateDefaults(temp) {
-	let jsdom;
-	let defaults = {};
-	try {
-		jsdom = new JSDOM(await fs.readFile(`template/${temp}.html`));
-		const nodes = jsdom.window.document.querySelectorAll("[data-edit]");
-		nodes.forEach(node => defaults[node.dataset.edit] = node.textContent);
-	} catch (err) {
-		console.error(err);
-		console.warn("cant find template => no defaults!!");
-	}
-	return defaults;
-}
+
+//post
+
+app.get("/post/list/", async (req, res) => {
+	res.json({
+		success: true,
+		list: await inout.listPost(),
+	});
+});
+
+app.get("/post/open/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.json(await inout.readPost(name));
+});
+
+app.put("/post/save/:name/", async (req, res) => {
+	const name = req.params.name;
+	const data = req.body;
+	res.send(await inout.writePost(name, data));
+});
+
+app.delete("/post/delete/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.send(await inout.unlinkPost(name));
+});
+
+
+///markdown
+
+app.get("/markdown/list/", async (req, res) => {
+	res.json({
+		success: true,
+		list: await inout.listMarkdown(),
+	});
+});
+
+app.get("/markdown/open/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.send(await inout.readMarkdown(name));
+});
+
+app.put("/markdown/save/:name/", async (req, res) => {
+	const name = req.params.name;
+	const data = req.body;
+	res.send(await inout.writeMarkdown(name, data));
+});
+
+app.delete("/markdown/delete/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.send(await inout.unlinkMarkdown(name));
+});
+
 
 const {Remarkable} = require("remarkable");
 const remark = new Remarkable();
@@ -98,7 +133,7 @@ app.put("/make/", async (req, res) => {
 		for (const [key, value] of Object.entries(data)) {
 			if (!map.has(key)) continue;
 			if (value.indexOf("{{") === 0 && value.indexOf("}}") === value.length - 2) {
-				map.get(key).innerHTML = remark.render(await readMarkdown(value.slice(2, -2)));
+				map.get(key).innerHTML = remark.render(await inout.readMarkdown(value.slice(2, -2)));
 			} else {
 				map.get(key).textContent = value;
 			}
@@ -119,7 +154,7 @@ app.put("/make/", async (req, res) => {
 		if (!~index) return;
 		name = name.substring(0, index);
 		
-		const post = await readPost(name);
+		const post = await inout.readPost(name);
 		if (post.name !== name) {
 			console.error("${name}: name mismatch => fail!!");
 			return;
@@ -140,7 +175,7 @@ app.put("/make/", async (req, res) => {
 		for (const [key, value] of Object.entries(post)) {
 			if (!map.has(key)) continue;
 			if (value.indexOf("{{") === 0 && value.indexOf("}}") === value.length - 2) {
-				map.get(key).innerHTML = remark.render(await readMarkdown(value.slice(2, -2)));
+				map.get(key).innerHTML = remark.render(await inout.readMarkdown(value.slice(2, -2)));
 			} else {
 				map.get(key).textContent = value;
 			}
@@ -265,147 +300,6 @@ async function writeHtml(name, jsdom, path = "") {
 	} else {
 		await fs.mkdir(`out/${path}${name}`, {recursive: true});
 		await fs.writeFile(`out/${path}${name}/index.html`, jsdom.serialize());
-	}
-}
-
-app.get("/post/list/", async (req, res) => {
-	await fs.mkdir("post", {recursive: true});
-	const names = await fs.readdir("post");
-
-	const list = names.filter(name => ~name.indexOf(".json"))
-		.map(name => {
-			const index = name.indexOf(".json");
-			return name.substring(0, index);
-		});
-
-	res.json({
-		success: true,
-		list,
-	});
-});
-
-app.get("/post/open/:name/", async (req, res) => {
-	const name = req.params.name;
-	res.json(await readPost(name));
-});
-
-async function readPost(name) {
-	let post;
-	try {
-		const json = await fs.readFile(`post/${name}.json`);
-		post = JSON.parse(json);
-		if (post.name !== name) {
-			console.warn("name mismatch => change post.name!!");
-			post.name = name;
-		}
-	} catch (err) {
-		console.log("cant open post => create new post!!");
-		post = {name, ...await getTemplateDefaults("post")};
-	}
-	return post;
-}
-
-app.put("/post/save/:name/", async (req, res) => {
-	const name = req.params.name;
-	const post = req.body;
-
-	const result = await writePost(name, post);
-	res.send(result);
-});
-
-async function writePost(name, post) {
-	if (post.name !== name) {
-		console.error("name mismatch => post not written!!");
-		return false;
-	}
-
-	await fs.mkdir("post", {recursive: true});
-	await fs.writeFile(`post/${post.name}.json`, JSON.stringify(post, null, 4));
-	return true;
-}
-
-app.delete("/post/delete/:name/", async (req, res) => {
-	const name = req.params.name;
-	
-	const result = await deletePost(name);
-	res.send(result);
-});
-
-async function deletePost(name) {
-	try {
-		await fs.rm(`post/${name}.json`);
-		return true;
-	} catch (err) {
-		console.error(`cant delete ${name} => post not deleted!!`);
-		return false;
-	}
-}
-
-app.get("/markdown/list/", async (req, res) => {
-	await fs.mkdir("markdown", {recursive: true});
-	const names = await fs.readdir("markdown");
-
-	const list = names.filter(name => ~name.indexOf(".md"))
-		.map(name => {
-			const index = name.indexOf(".md");
-			return name.substring(0, index);
-		});
-
-	res.json({
-		success: true,
-		list,
-	});
-});
-
-app.get("/markdown/open/:name/", async (req, res) => {
-	const name = req.params.name;
-	res.send(await readMarkdown(name));
-});
-
-async function readMarkdown(name) {
-	try {
-		return await fs.readFile(`markdown/${name}.md`, "utf8");
-	} catch (err) {
-		console.log(`cant open markdown/${name}.md => no content!!`);
-		return "";
-	}
-}
-
-app.put("/markdown/save/:name/", async (req, res) => {
-	const name = req.params.name;
-	const markdown = req.body;
-
-	const result = await writeMarkdown(name, markdown);
-	res.send(result);
-});
-
-async function writeMarkdown(name, markdown) {
-	try {
-		await fs.mkdir("markdown", {recursive: true});
-		await fs.writeFile(`markdown/${name}.md`, markdown);
-		return true;
-	} catch (err) {
-		console.error(err);
-		console.error(`cant write markdown/${name}.md => fail!!`);
-		return false;
-	}
-}
-
-app.delete("/markdown/delete/:name/", async (req, res) => {
-	const name = req.params.name;
-	
-	const result = await deleteMarkdown(name);
-	res.send(result);
-});
-
-async function deleteMarkdown(name) {
-	try {	
-		await fs.rm(`markdown/${name}.md`);
-		return true;
-	} catch (err) {
-		console.error(err);
-		console.error(`cant delete markdown/${name}.md => fail!!`);
-		return false;
 	}
 }
 
