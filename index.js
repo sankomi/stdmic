@@ -355,27 +355,12 @@ async function writeHtml(name, jsdom, path = "") {
 	}
 }
 
-const ftp = require("basic-ftp");
+
+//upload
+
+const ftp = require("./ftp");
 app.put("/upload/", async (req, res) => {
-	const client = new ftp.Client();
-	try {
-		await client.access({
-			host: process.env.FTP_HOST,
-			user: process.env.FTP_USER,
-			password: process.env.FTP_PASSWORD,
-			secure: true,
-		});
-		await client.cd(process.env.FTP_PATH);
-		await client.clearWorkingDir();
-		await client.uploadFromDir("out");
-	} catch (err) {
-		console.error(err);
-		console.error("error while uploading => fail!!");
-		return res.send(false);
-	} finally {
-		client.close();
-	}
-	res.send(true);
+	res.send(await ftp.upload());
 });
 
 app.listen(port, () => console.log(`on ${port}`));
