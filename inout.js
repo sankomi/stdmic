@@ -94,7 +94,6 @@ async function listJson(dir) {
 				return name.substring(0, index);
 			});
 	} catch (err) {
-		console.error(err);
 		console.error(`cant list json in dir (${dir}) => fail!!`);
 		return null;
 	}
@@ -229,8 +228,95 @@ async function listMarkdown() {
 }
 
 
+//file
+
+async function readFile(name) {
+	try {
+		const file = path.join(__dirname, "file", name);
+		const exists = await fs.stat(file);
+		return file;
+	} catch (err) {
+		return false;
+	}
+}
+
+const multer = require("multer");
+const upload = multer({
+	storage: multer.diskStorage({
+		destination: (req, file, callback) => callback(null, "file"),
+		filename: (req, file, callback) => callback(null, file.originalname.trim().replaceAll(/^\.+/g, "")),
+	})
+});
+
+function writeFile(...args) {
+	upload.single("file")(...args);
+}
+
+async function unlinkFile(name) {
+	try {
+		await unlink("file", name);
+		return true;
+	} catch (err) {
+		console.error(`cant unlink file (${name}) => fail!!`);
+		return false;
+	}
+}
+
+async function listFile() {
+	try {
+		return await list("file");
+	} catch (err) {
+		console.error(`cant list file in dir (file) => fail!!`);
+	}
+}		
+
+
+//setting
+
+async function readSetting(name) {
+	const setting = await readJson("setting", name);
+	if (setting) return setting;
+	console.log(`cant read setting (${name}) => create new setting!!`);
+	return {name, ...await readSettingDefault(name)};
+}
+
+async function writeSetting(name, json) {
+	return await writeJson("setting", name, json);
+}
+
+async function unlinkSetting(name) {
+	return await unlinkJson("setting", name);
+}
+
+async function listSetting() {
+	return await listJson("setting");
+}
+
+function readSettingDefault(name) {
+	const setting = {name};
+
+	if (name === "nav") {
+		setting.items = [
+			{
+				title: "item",
+				link: "",
+				subitems: [
+					{
+						title: "subitem",
+						link: "",
+					}
+				],
+			}
+		];
+	}
+
+	return setting;
+}
+
 module.exports = {
 	readPage, writePage, unlinkPage, listPage,
 	readPost, writePost, unlinkPost, listPost,
 	readMarkdown, writeMarkdown, unlinkMarkdown, listMarkdown,
+	readFile, writeFile, unlinkFile, listFile,
+	readSetting, writeSetting, unlinkSetting, listSetting,
 };

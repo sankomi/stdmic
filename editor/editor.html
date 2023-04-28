@@ -184,7 +184,7 @@
 				fileAdd.addEventListener("click", event => {
 					event.preventDefault();
 					const data = new FormData(fileForm);
-					fetch("/file/add/", {
+					fetch("/file/save/", {
 						method: "POST",
 						body: data,
 					})
@@ -203,16 +203,16 @@
 							const ul = document.createElement("ul");
 							fileList.appendChild(ul);
 
-							files.forEach(file => {
+							files.list.forEach(file => {
 								const li = document.createElement("li");
 								const link = document.createElement("a");
-								link.href = `/file/${file}`;
+								link.href = `/file/open/${file}/`;
 								link.target = "_blank";
 								link.textContent = file;
 								const button = document.createElement("button");
 								button.textContent = "remove";
 								button.addEventListener("click", event => {
-									fetch(`/file/remove/${file}/`, {
+									fetch(`/file/delete/${file}/`, {
 										method: "DELETE",
 									})
 										.then(res => res.text())

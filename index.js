@@ -95,6 +95,58 @@ app.delete("/markdown/delete/:name/", async (req, res) => {
 });
 
 
+//file
+
+app.get("/file/list/", async (req, res) => {
+	res.json({
+		success: true,
+		list: await inout.listFile(),
+	});
+});
+
+app.get("/file/open/:name/", async (req, res) => {
+	const name = req.params.name;
+	const file = await inout.readFile(name);
+	if (file) res.sendFile(file);
+	else res.sendStatus(404);
+});
+
+app.post("/file/save/", inout.writeFile, (req, res) => {
+	res.send(true);
+});
+
+app.delete("/file/delete/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.send(await inout.unlinkFile(name));
+});
+
+
+//setting
+
+app.get("/setting/list/", async (req, res) => {
+	res.json({
+		success: true,
+		list: await inout.listSetting(),
+	});
+});
+
+app.get("/setting/open/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.json(await inout.readSetting(name));
+});
+
+app.put("/setting/save/:name/", async (req, res) => {
+	const name = req.params.name;
+	const data = req.body;
+	res.send(await inout.writeSetting(name, data));
+});
+
+app.delete("/setting/delete/:name/", async (req, res) => {
+	const name = req.params.name;
+	res.send(await inout.unlinkSetting(name));
+});
+
+
 const {Remarkable} = require("remarkable");
 const remark = new Remarkable();
 app.put("/make/", async (req, res) => {
@@ -103,7 +155,7 @@ app.put("/make/", async (req, res) => {
 	
 	await copyFiles();
 
-	const nav = await readSetting("nav");
+	const nav = await inout.readSetting("nav");
 	await fs.mkdir("page", {recursive: true});
 	let names = await fs.readdir("page");
 	
@@ -230,7 +282,7 @@ async function copyFiles() {
 	} catch (err) {
 		console.error("cant copy static files => not copied!!");
 	}
-	
+
 	try {
 		const files = await fs.readdir("file");
 		await Promise.all(files.map(file => fs.copyFile(`file/${file}`, `out/file/${file}`)));
@@ -303,98 +355,6 @@ async function writeHtml(name, jsdom, path = "") {
 	}
 }
 
-app.get("/setting/list/", async (req, res) => {
-	await fs.mkdir("setting", {recursive: true});
-	const names = await fs.readdir("setting");
-	
-	const list = names.filter(name => ~name.indexOf(".json"))
-		.map(name => {
-			const index = name.indexOf(".json");
-			return name.substring(0, index);
-		});
-
-	res.json({
-		success: true,
-		list,
-	});
-});
-
-app.get("/setting/open/:name/", async (req, res) => {
-	const name = req.params.name;
-	res.json(await readSetting(name));
-});
-
-async function readSetting(name) {
-	let seting;
-	try {
-		const json = await fs.readFile(`setting/${name}.json`);
-		setting = JSON.parse(json);
-		if (setting.name !== name) {
-			console.warn("name mismatch => change setting.name!!");
-			setting.name = name;
-		}
-	} catch (err) {
-		console.log(`cant open ${name}  => create new ${name}!!`);
-		
-		if (name === "nav") {
-			setting = {
-				name,
-				items: [
-					{
-						title: "item",
-						link: "",
-						subitems: [
-							{
-								title: "subitem",
-								link: "",
-							}
-						],
-					}
-				],
-			};
-		} else {
-			setting = {name};
-		}
-	}
-	return setting;
-}
-
-app.put("/setting/save/:name/", async (req, res) => {
-	const name = req.params.name;
-	const setting = req.body;
-
-	const result = await writeSetting(name, setting);
-	res.send(result);
-});
-
-async function writeSetting(name, setting) {
-	if (setting.name !== name) {
-		console.error("name mismatch => setting not written!!");
-		return false;
-	}
-	
-	await fs.mkdir("setting", {recursive: true});
-	await fs.writeFile(`setting/${setting.name}.json`, JSON.stringify(setting, null, 4));
-	return true;
-}
-
-app.delete("/setting/delete/:name/", async (req, res) => {
-	const name = req.params.name;
-	
-	const result = await deleteSetting(name);
-	res.send(result);
-});
-
-async function deleteSetting(name) {
-	try {	
-		await fs.rm(`setting/${name}.json`);
-		return true;
-	} catch (err) {
-		console.error(`cant delete ${name} => setting not deleted!!`);
-		return false;
-	}
-}
-
 const ftp = require("basic-ftp");
 app.put("/upload/", async (req, res) => {
 	const client = new ftp.Client();
@@ -415,50 +375,6 @@ app.put("/upload/", async (req, res) => {
 	} finally {
 		client.close();
 	}
-	res.send(true);
-});
-
-const multer = require("multer");
-const storage = multer.diskStorage({
-	destination: (req, file, callback) => {
-		callback(null, "file");
-	},
-	filename: (req, file, callback) => {
-		let filename = file.originalname.trim();
-		while (filename[0] === ".") filename = filename.substring(1);
-		callback(null, filename);
-	},
-});
-
-const upload = multer({storage});
-app.post("/file/add/", upload.single("file"), (req, res, next) => {
-	res.send(true);
-});
-
-app.get("/file/list/", async (req, res) => {
-	await fs.mkdir("file", {recursive: true});
-	const files = await fs.readdir("file");
-
-	res.json(files);
-});
-
-app.get("/file/:name/", async (req, res) => {
-	const file = path.join(__dirname, "file", req.params.name);
-	const exists = await fs.stat(file)
-		.then(() => true)
-		.catch(() => false);
-
-	if (exists) res.sendFile(file);
-	else res.sendStatus(404);
-});
-
-app.delete("/file/remove/:name/", async (req, res) => {
-	const name = req.params.name;
-	await fs.mkdir("file", {recursive: true});
-	await fs.unlink(`file/${name}`)
-		.catch(err => {
-			console.error("cant unlinkfile => not removed!!");
-		});
 	res.send(true);
 });
 
