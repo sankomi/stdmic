@@ -1,6 +1,5 @@
 const path = require("path");
 const fs = require("fs").promises;
-const JSDOM = require("jsdom").JSDOM;
 
 
 async function read(dir, name) {
@@ -39,6 +38,26 @@ async function list(dir) {
 	} catch (err) {
 		console.error(`cant list dir (${dir}) => fail!!`);
 		return null;
+	}
+}
+
+async function rmdir(dir) {
+	try {
+		await fs.rm(dir, {recursive: true});
+		return true;
+	} catch (err) {
+		console.error(`cant remove dir (${dir}) => fail!!`);
+		return false;
+	}
+}
+
+async function copydir(from, to) {
+	try {
+		await fs.mkdir(to, {recursive: true});
+		const files = await fs.readdir(from);
+		await Promise.all(files.map(file => fs.copyFile(path.join(from, file), path.join(to, file))));
+	} catch (err) {
+		console.warn(`cant copy (${from} > ${to}) => not copied!!`);
 	}
 }
 
@@ -148,15 +167,28 @@ async function listMd(dir) {
 
 //template
 
+const JSDOM = require("jsdom").JSDOM;
+
 async function readEditDefaults(template) {
 	try {
-		const jsdom = new JSDOM(await fs.readFile(`template/${template}.html`));
+		const jsdom = new JSDOM(await read("template", template + ".html"));
 		const nodes = jsdom.window.document.querySelectorAll("[data-edit]");
 		const defaults = {};
 		nodes.forEach(node => defaults[node.dataset.edit] = node.textContent);
 		return defaults;
 	} catch (err) {
 		console.warn(`cant read template (${template}) => no defaults!!`);
+		return null;
+	}
+}
+
+async function readTemplate(template) {
+	try {
+		const jsdom = new JSDOM(await read("template", template + ".html"));
+		if (!jsdom) throw new Error();
+		return jsdom;
+	} catch (err) {
+		console.error(`cant read template (${template}) => fail!!`);
 		return null;
 	}
 }
@@ -313,10 +345,26 @@ function readSettingDefault(name) {
 	return setting;
 }
 
+
+//html
+
+async function writeHtml(name, jsdom, dir = "") {
+	name = name.toLowerCase().replaceAll(" ", "-").replaceAll(/[^-a-z0-9]/g, "");
+	if (name === "index") {
+		return await write(path.join("out", dir), "index.html", jsdom.serialize());
+	} else {
+		return await write(path.join("out", dir, name), "index.html", jsdom.serialize());
+	}
+}
+
+
 module.exports = {
+	read, write, unlink, list, rmdir, copydir,
 	readPage, writePage, unlinkPage, listPage,
 	readPost, writePost, unlinkPost, listPost,
 	readMarkdown, writeMarkdown, unlinkMarkdown, listMarkdown,
 	readFile, writeFile, unlinkFile, listFile,
 	readSetting, writeSetting, unlinkSetting, listSetting,
+	readEditDefaults, readTemplate,
+	writeHtml,
 };
