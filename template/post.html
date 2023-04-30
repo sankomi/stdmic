@@ -5,22 +5,40 @@
 		<meta name="robots" content="noindex">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title></title>
+
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500&display=swap" rel="stylesheet">
+
 		<link rel="stylesheet" href="/style.css">
+		<script src="/script.js" defer></script>
 	</head>
 	<body>
 		<div class="site">
-			<header class="header">
+			<header id="header" class="header">
 				<div class="header__inner contain">
-					<div class="header__logo">
-						<a href="/">stdmic</a>
+					<div class="header__left">
+						<button id="nav-open" class="header__nav-open">
+							<span></span>
+							<span></span>
+						</button>
+						<div class="header__title">
+							<a href="/">stdmic</a>
+						</div>
 					</div>
-					<nav class="header__nav nav" data-nav="nav">
-						<ul class="nav__list">
-							<li class="nav__item" data-nav="item">
-								<a class="nav__link" data-nav="link"></a>
-								<ul class="nav__subnav" data-nav="subnav">
-									<li class="nav__item nav__item--sub" data-nav="subitem">
-										<a class="nav__link nav__link--sub" data-nav="sublink"></a>
+					<button id="nav-close" class="header__nav-close">
+						<div>
+							<span></span>
+							<span></span>
+						</div>
+					</button>
+					<nav class="header__nav" data-nav="nav">
+						<ul class="header__nav-list">
+							<li class="header__nav-item" data-nav="item">
+								<a class="header__nav-link" data-nav="link"></a>
+								<ul class="header__nav-list header__nav-list--sub" data-nav="subnav">
+									<li class="header__nav-item header__nav-item--sub" data-nav="subitem">
+										<a class="header__nav-link header__nav-link--sub" data-nav="sublink"></a>
 									</li>
 								</ul>
 							</li>
@@ -31,15 +49,17 @@
 
 			<main class="main">
 				<div class="contain">
-					<h1 data-edit="title"></h1>	
-					<p data-edit="content"></p>
+					<h1 class="main__heading" data-edit="heading"></h1>
+					<div class="main__content" data-edit="content"></div>
 				</div>
 			</main>
+
+			<hr>
 			
 			<footer class="footer">
 				<div class="footer__inner contain">
 					<div class="footer__copy">
-						&amp;copy; sanko 2022
+						&amp;copy; sanko 2023
 					</div>
 				</div>
 			</footer>
